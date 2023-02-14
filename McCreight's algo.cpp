@@ -13,7 +13,6 @@
 
 using namespace std;
 
-
 // объявление узла в графике
 string print_node(treenode* node, string T) {
     string s = to_string((unsigned long)node); // указатель id узла
@@ -44,7 +43,7 @@ void serialize_(treenode* root, FILE* fp, string T)
 
 }
 
-// графическое построение дерева (dot)
+// графическое построение дерева (dot graphviz)
 void serialize(treenode* root, FILE* fp, string T) {
     fprintf(fp, "digraph G {\n"); // необходимо для графического построения дерева
     fprintf(
@@ -59,14 +58,14 @@ void serialize(treenode* root, FILE* fp, string T) {
 // тестирование. сравниваем подстроки из строки и то, что получилось в дереве
 bool test_(int i, treenode* node, string T) {
     for (int j = 0; j < node->chars(T).length(); i++, j++) {
-        if (T[i] != node->chars(T)[j]) { // если нашли несовпадение выходим, дерево построено неверно
+        if (T[i] != node->chars(T)[j]) { // если нашли несовпадение суффикса выходим, дерево построено неверно
             return false;
         }
         if (T[i] == '$') { // если дошли до конца строки и не зашли в первый if, значит дерево построено верно
             return true;
         }
     }
-    for (int k = 0; k < MAX_CHAR && node->children[k] != NULL; k++) {
+    for (int k = 0; k < MAX_CHAR && node->children[k] != NULL; k++) { // проходим по массиву детей
         if (test_(i, node->children[k], T)) { // вызываем функцию
             return true;
         }
@@ -80,7 +79,7 @@ bool test(string T) {
     treenode* root = build_suffix_tree(T, len);
 
     for (int i = 0; i < len; i++) {
-        if (!test_(i, root, T)) {
+        if (!test_(i, root, T)) { // если какой-либо из суффиксов не содержится в дереве
             return false;
         }
     }
@@ -101,10 +100,13 @@ int main(/*int argc, char* argv[]*/)
     cout << "Введите команду: ";
     cin >> command;
 
-    if (command == 1) {
+    if (command == 1) { // single_str_file одна строка
 
         ifstream f1;
         f1.open("single_str_file.txt");
+
+        ofstream f2;
+        f2.open("single_test_res.txt");
 
         if (!f1.is_open()) {
             cout << "Can't open file" << endl; // если не открылся
@@ -117,6 +119,8 @@ int main(/*int argc, char* argv[]*/)
 
         f1 >> T;
 
+        f1.close();
+
         auto t_start = chrono::high_resolution_clock::now(); // получаем стартовое время
 
         int len = T.length();
@@ -128,14 +132,10 @@ int main(/*int argc, char* argv[]*/)
         double elapsed_time_ms = chrono::duration<double, milli>(t_end - t_start).count(); // подсчитываем время выполнения алгоритма
         /* время выполнения алгоритма в худшем случае линейно O(n), где n - количество символов в строке*/
 
-        ofstream f2;
-        f2.open("single_test_res.txt");
-
         f2 << "Длина исходной строки: " << len << endl << "Исходная строка со знаком $: " << T << endl;
         f2 << "Время построения суффиксного дерева: " << elapsed_time_ms << " ms" << endl;
         f2 << "Затраты по памяти: " << treenode::nodes_allocated * sizeof(treenode) << " байт" << endl; 
         // затраты по памяти линейны и зависят от количества узлов, так как память выделяется под узлы дерева
-
 
         if (test(T)) {
             f2 << "Прохождение теста: " << "true" << endl;
@@ -149,11 +149,13 @@ int main(/*int argc, char* argv[]*/)
 
         serialize(root, fp, T);
     }
-    else if (command == 2) {
-       
-    // тесты из файла
+    else if (command == 2) { // test_strings набор строк из файла
+    
         ifstream f1;
         f1.open("test_strings.txt");
+
+        ofstream f_test;
+        f_test.open("info_tests.txt");
 
         if (!f1.is_open()) {
             cout << "Can't open file" << endl; // если не открылся
@@ -163,9 +165,6 @@ int main(/*int argc, char* argv[]*/)
             cout << "File is empty" << endl; // если первый символ конец файла
             return EXIT_FAILURE;
         }
-        
-        ofstream f_test;
-        f_test.open("info_tests.txt");
 
         while (getline(f1, T)) { // пока не достигнут конец файла класть очередную строку в переменную T
 
@@ -174,9 +173,7 @@ int main(/*int argc, char* argv[]*/)
             int len = T.length();
             T.push_back('$');
 
-
             treenode* root = build_suffix_tree(T, len);
-
 
             auto t_end = chrono::high_resolution_clock::now(); // получаем время по окончании построения дерева
             double elapsed_time_ms = chrono::duration<double, milli>(t_end - t_start).count(); // подсчитываем время выполнения алгоритма
@@ -184,10 +181,8 @@ int main(/*int argc, char* argv[]*/)
 
             f_test << "Длина исходной строки: " << len << endl << "Исходная строка со знаком $: " << T << endl;
             f_test << "Время построения суффиксного дерева: " << elapsed_time_ms << " ms" << endl;
-            f_test << "Затраты по памяти: " << (treenode::nodes_allocated * sizeof(treenode)) - sum << " байт" << endl;
+            f_test << "Затраты по памяти: " << treenode::nodes_allocated * sizeof(treenode) << " байт" << endl;
             // затраты по памяти линейны и зависят от количества узлов, так как память выделяется под узлы дерева
-
-            sum += treenode::nodes_allocated * sizeof(treenode) - sum;
 
             if (test(T)) {
                 f_test << "Прохождение теста: " << "true" << endl;
@@ -196,20 +191,25 @@ int main(/*int argc, char* argv[]*/)
 
             f_test << endl;
 
+            treenode::nodes_allocated = 0;
         }
+
+        f1.close();
+        f_test.close();
+
     }
-    else if (command == 3) {
-        // генератор тестов
+    else if (command == 3) { // генератор тестов
 
         ofstream auto_t_file;
         auto_t_file.open("auto_tests_result.txt");
 
-        srand((unsigned)time(NULL)); // Задает начальное значение для генератора псевдослучайных чисел, используемого rand функцией.
+        mt19937 rnd(4321);
         
         int amount;
-        amount = rand() % 100 + 10;
+        amount = rnd() % 100 + 1;
 
         // Можно раскомментировать и вводить количество тестов с консоли
+        //
         //
         /*cout << "Сколько тестов вы хотите запустить: ";
         cin >> amount;
@@ -220,7 +220,7 @@ int main(/*int argc, char* argv[]*/)
 
         for (int i = 0; i < amount; i++) {
 
-            int n = rand() % 100 + 1; // rand - функция генерации случайных чисел, не больше 100, не меньше 1
+            int n = rnd() % 100 + 1; // rnd - генерирует случайное число, не больше 100, не меньше 1
             T = GenerateString(n);
 
             auto t_start = chrono::high_resolution_clock::now(); // получаем стартовое время
@@ -232,20 +232,21 @@ int main(/*int argc, char* argv[]*/)
 
             auto t_end = chrono::high_resolution_clock::now(); // получаем время по окончании построения дерева
             double elapsed_time_ms = chrono::duration<double, milli>(t_end - t_start).count(); // подсчитываем время выполнения алгоритма
-            /* время выполнения алгоритма в худшем случае линейно O(n), где n - количество символов в строке*/
+
+            /* время выполнения алгоритма O(n), где n - количество символов в строке*/
 
             auto_t_file << "Длина исходной строки: " << len << endl << "Исходная строка со знаком $: " << T << endl;
             auto_t_file << "Время построения суффиксного дерева: " << elapsed_time_ms << " ms" << endl;
-            auto_t_file << "Затраты по памяти: " << treenode::nodes_allocated * sizeof(treenode) - sum << " байт" << endl;
-            // затраты по памяти линейны и зависят от количества узлов, так как память выделяется под узлы дерева
+            auto_t_file << "Затраты по памяти: " << treenode::nodes_allocated * sizeof(treenode) << " байт" << endl;
 
-            sum += treenode::nodes_allocated * sizeof(treenode) - sum;
+            /*затраты по памяти линейны и зависят от количества узлов, так как память выделяется под узлы дерева*/
 
             if (test(T)) {
                 auto_t_file << "Прохождение теста: " << "true" << endl << endl;
             }
             else auto_t_file << "Прохождение теста: " << "false" << endl << endl;
 
+            treenode::nodes_allocated = 0;
         }
 
         auto_t_file.close();
